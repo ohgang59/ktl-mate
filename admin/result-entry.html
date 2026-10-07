@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 시험 결과 입력</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    body { background:#f4f7f8; color:#203540; }
+    .topnav { padding:12px 24px; background:#103e3a; color:#fff; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+    .topnav a { color:#fff; text-decoration:none; font-weight:650; opacity:.82; }
+    .topnav a.active { opacity:1; border-bottom:2px solid #ffd166; }
+    .shell { max-width:1260px; margin:0 auto; padding:28px 24px 50px; }
+    .eyebrow { color:#2f6e69; font-size:12px; font-weight:800; letter-spacing:.08em; }
+    h1 { margin:4px 0 6px; color:#17324d; }
+    .lead { margin:0 0 20px; color:#6d7f88; font-size:13px; }
+    .layout { display:grid; grid-template-columns:minmax(0, .95fr) minmax(0,1.05fr); gap:18px; align-items:start; }
+    .card { min-width:0; background:#fff; border:1px solid #dfe7e9; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(16,62,58,.05); }
+    .card h2 { margin:0 0 4px; color:#17324d; font-size:18px; }
+    .sub { margin:0 0 16px; color:#7a8a91; font-size:11.5px; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+    label { display:flex; flex-direction:column; gap:5px; color:#50636b; font-size:12px; font-weight:650; }
+    label.wide { grid-column:1/-1; }
+    input, select, textarea { width:100%; min-width:0; box-sizing:border-box; padding:9px 10px; border:1px solid #cbd7da; border-radius:7px; background:#fff; color:#203540; font:inherit; }
+    textarea { min-height:82px; resize:vertical; }
+    .check { flex-direction:row; align-items:center; padding-top:22px; }
+    .check input { width:auto; }
+    .auto-preview { margin-top:14px; padding:13px; background:#f3f8f7; border:1px solid #cfe1dd; border-radius:9px; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .auto-preview span { color:#71838b; font-size:10.5px; }
+    .auto-preview strong { display:block; color:#103e3a; margin-top:3px; font-size:16px; }
+    .actions { display:flex; justify-content:flex-end; align-items:center; gap:9px; margin-top:15px; }
+    button { border:0; border-radius:8px; padding:9px 14px; cursor:pointer; font-weight:700; }
+    .primary { background:#cf563e; color:#fff; }
+    .ghost { background:#edf2f3; color:#40545e; }
+    .message { margin-right:auto; color:#2f6e69; font-size:12px; font-weight:700; }
+    .toolbar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .toolbar button { font-size:11.5px; }
+    .count { margin-left:auto; color:#687b84; font-size:12px; align-self:center; }
+    .table-wrap { overflow:auto; max-height:590px; }
+    table { width:100%; border-collapse:collapse; font-size:11.5px; }
+    th, td { padding:8px 7px; border-bottom:1px solid #edf1f2; text-align:left; white-space:nowrap; }
+    th { position:sticky; top:0; background:#f7f9fa; color:#60737b; font-size:10.5px; }
+    td.num { text-align:right; }
+    .empty { text-align:center; color:#7a8a91; padding:28px; }
+    .storage-note { margin-top:12px; color:#7a8a91; font-size:10.5px; line-height:1.5; }
+    @media(max-width:1300px){.layout{grid-template-columns:1fr}}
+    @media(max-width:760px){.form-grid{grid-template-columns:1fr}label.wide{grid-column:auto}.auto-preview{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <strong>KTL TestMate</strong>
+    <a href="./index.html">관리자</a>
+    <a href="./db.html">데이터 요약</a>
+    <a href="./stats.html">통계 시각화</a>
+    <a href="./result-entry.html" class="active">결과 입력</a>
+  </nav>
+
+  <main class="shell">
+    <div class="eyebrow">AUTOMATIC DATA COLLECTION</div>
+    <h1>시험 결과 입력 및 데이터 저장</h1>
+    <p class="lead">관리자가 결과를 입력하면 처리기간·지연 여부·재학습용 필드가 자동 계산되어 구조화 데이터로 저장됩니다.</p>
+
+    <section class="layout">
+      <form id="resultForm" class="card">
+        <h2>결과 입력</h2>
+        <p class="sub">필수 정보만 입력해도 분석 가능한 한 행의 데이터가 생성됩니다.</p>
+        <div class="form-grid">
+          <label>접수번호<input name="receipt_no" required placeholder="예: KTL-2026-001" /></label>
+          <label>시험 결과
+            <select name="outcome" required>
+              <option>정상 완료</option><option>지연 완료</option><option>재시험</option><option>시험 불가</option>
+            </select>
+          </label>
+          <label>사업구분<select id="resultBiz" name="biz" required></select></label>
+          <label>중분류<select id="resultMid" name="mid" required></select></label>
+          <label class="wide">소분류<select id="resultSub" name="sub" required></select></label>
+          <label>접수일<input id="receivedOn" name="received_on" type="date" required /></label>
+          <label>완료일<input id="completedOn" name="completed_on" type="date" required /></label>
+          <label>기존 예측 처리일<input name="predicted_days" type="number" min="0" step="0.1" placeholder="선택 입력" /></label>
+          <label>담당 부서<input name="department" placeholder="예: 전기안전센터" /></label>
+          <label class="wide">지연 사유<input name="delay_reason" placeholder="지연이 없으면 비워두세요" /></label>
+          <label class="wide">결과 요약<textarea name="result_summary" placeholder="시험 결과와 특이사항을 간단히 입력하세요"></textarea></label>
+          <label class="check"><input name="rework_required" type="checkbox" /> 재시험·보완 필요</label>
+        </div>
+
+        <div class="auto-preview" aria-label="자동 계산 결과">
+          <div><span>전체 경과일</span><strong id="elapsedPreview">-</strong></div>
+          <div><span>영업일 기준 처리일</span><strong id="businessPreview">-</strong></div>
+          <div><span>예측 대비 오차</span><strong id="errorPreview">-</strong></div>
+        </div>
+
+        <div class="actions">
+          <span id="saveMessage" class="message"></span>
+          <button id="resetButton" class="ghost" type="button">입력 초기화</button>
+          <button class="primary" type="submit">구조화 데이터 저장</button>
+        </div>
+      </form>
+
+      <article class="card">
+        <h2>저장된 결과 데이터</h2>
+        <p class="sub">브라우저에 자동 보관되며 CSV 또는 JSON으로 내려받아 재학습 데이터에 합칠 수 있습니다.</p>
+        <div class="toolbar">
+          <button id="csvButton" class="ghost" type="button">CSV 내보내기</button>
+          <button id="jsonButton" class="ghost" type="button">JSON 내보내기</button>
+          <span id="resultCount" class="count">0건</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>접수번호</th><th>사업</th><th>소분류</th><th>접수일</th><th>완료일</th><th>영업일</th><th>결과</th></tr></thead>
+            <tbody id="resultRows"></tbody>
+          </table>
+        </div>
+        <p class="storage-note">※ 정적 웹페이지에서는 현재 브라우저의 localStorage에 저장됩니다. CSV/JSON 파일을 주기적으로 내려받아 중앙 데이터에 합치면 안전하게 누적할 수 있습니다.</p>
+      </article>
+    </section>
+  </main>
+
+  <script src="./precomputed_results.js"></script>
+  <script src="./result-entry.js"></script>
+</body>
+</html>

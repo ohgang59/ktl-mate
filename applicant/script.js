@@ -62,6 +62,7 @@ const toISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0'
 
 function fillSel(el, items) {
   el.innerHTML = items.map((v) => `<option value="${v}">${v}</option>`).join("");
+  el.disabled = items.length === 0;
 }
 
 function bindLinkedSelects(bizEl, midEl, subEl, onChange) {
@@ -264,8 +265,19 @@ function loadDraft() {
 
 (async function init() {
   todayLabel.textContent = fmtDate(new Date());
-  catalog = await api("/api/catalog");
-  bizStats = await api("/api/stats/biz");
+  const staticData = window.KTL_PRECOMPUTED_RESULTS || {};
+  catalog = staticData.catalog || {};
+  bizStats = staticData.biz_stats || [];
+  try {
+    const [liveCatalog, liveBizStats] = await Promise.all([
+      api("/api/catalog"),
+      api("/api/stats/biz"),
+    ]);
+    if (Object.keys(liveCatalog || {}).length) catalog = liveCatalog;
+    if (liveBizStats?.length) bizStats = liveBizStats;
+  } catch (error) {
+    console.info("정적 분류 데이터를 사용합니다.", error);
+  }
 
   const bizes = Object.keys(catalog).sort();
   fillSel(formBiz, bizes); fillSel(calcBiz, bizes); fillSel(recBiz, bizes); fillSel(calendarBizSelect, bizes);
@@ -284,7 +296,7 @@ function loadDraft() {
   calcDate.value = toISO(new Date());
   recEarliest.value = toISO(new Date());
 
-  renderChart();
+  if (bizStats.length) renderChart();
   renderCalendar();
   bind();
   loadDraft();

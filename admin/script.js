@@ -48,6 +48,14 @@ let editing = false;
 let receiptForecastData = null;
 let selectedReceiptForecastDate = null;
 
+function getStoredResultCount() {
+  try {
+    return JSON.parse(localStorage.getItem("ktl-admin-results-v1") || "[]").length;
+  } catch {
+    return 0;
+  }
+}
+
 async function api(path, init) {
   const r = await fetch(API + path, init);
   if (!r.ok) throw new Error(`${r.status}: ${await r.text()}`);
@@ -69,7 +77,8 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
 }[ch]));
 
 function fillSelect(el, values) {
-  el.innerHTML = values.map((v) => `<option value="${v}">${v}</option>`).join("");
+  el.innerHTML = values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+  el.disabled = values.length === 0;
 }
 
 function populatePredictSelects() {
@@ -145,7 +154,7 @@ async function refreshDashboard() {
     const d = await api("/api/dashboard");
     todayCountEl.textContent = d.today;
     monthCountEl.textContent = d.month;
-    collectedCountEl.textContent = d.collected ?? 0;
+    collectedCountEl.textContent = (d.collected ?? 0) + getStoredResultCount();
     const pct = d.month === 0 ? 0 : Math.round((d.today / d.month) * 100);
     donutPercent.textContent = `${pct}%`;
     donutChart.style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, #e4ecef 0deg)`;
@@ -669,15 +678,21 @@ function bind() {
 
 (async function init() {
   updateClock();
+  collectedCountEl.textContent = getStoredResultCount();
+  const staticData = window.KTL_PRECOMPUTED_RESULTS || {};
+  catalog = staticData.catalog || {};
+  if (Object.keys(catalog).length) populatePredictSelects();
   let backendAvailable = true;
   try {
-    catalog = await api("/api/catalog");
+    const liveCatalog = await api("/api/catalog");
+    if (Object.keys(liveCatalog || {}).length) catalog = liveCatalog;
     populatePredictSelects();
   } catch {
     backendAvailable = false;
-    catalog = {};
     predictedCompletion.textContent = "사전 계산 결과";
-    predictionSummary.textContent = "아래에서 미리 계산된 접수량 예측 결과를 확인하세요.";
+    predictionSummary.textContent = Object.keys(catalog).length
+      ? "분류 목록을 불러왔습니다. 아래에서 미리 계산된 접수량 예측 결과를 확인하세요."
+      : "분류 목록을 불러오지 못했습니다.";
   }
   renderCalendar();
   if (backendAvailable) {

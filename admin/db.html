@@ -3,89 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>관리자 DB 콘솔</title>
+  <title>관리자 데이터 요약</title>
   <link rel="stylesheet" href="./styles.css" />
   <style>
-    body { background:#f4f7f8; }
-    .topnav { padding: 12px 24px; background:#103e3a; color:#fff; display:flex; gap:16px; align-items:center; }
-    .topnav a { color:#fff; text-decoration:none; font-weight:600; opacity:.85; }
+    body { background:#f4f7f8; color:#203540; }
+    .topnav { padding:12px 24px; background:#103e3a; color:#fff; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+    .topnav a { color:#fff; text-decoration:none; font-weight:650; opacity:.82; }
     .topnav a.active { opacity:1; border-bottom:2px solid #ffd166; }
-    .db-shell { padding:24px; max-width:1500px; margin:0 auto; }
-    .db-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
-    .db-toolbar input, .db-toolbar select { padding:6px 10px; border:1px solid #cdd5d8; border-radius:6px; background:#fff; font-size:13px; }
-    .db-toolbar .btn { padding:7px 14px; border-radius:6px; border:0; cursor:pointer; font-size:13px; font-weight:600; }
-    .btn-primary { background:#103e3a; color:#fff; }
-    .btn-success { background:#2e7d32; color:#fff; }
-    .btn-danger  { background:#c62828; color:#fff; }
-    .btn-ghost   { background:#fff; border:1px solid #cdd5d8; }
-    .db-summary { color:#456; font-size:13px; margin-left:auto; }
-    .db-table-wrap { background:#fff; border-radius:10px; overflow:auto; box-shadow:0 1px 4px rgba(0,0,0,.06); max-height: calc(100vh - 220px); }
-    table.db-table { border-collapse:collapse; width:100%; font-size:12.5px; }
-    table.db-table th, table.db-table td { padding:6px 8px; border-bottom:1px solid #eef1f3; text-align:left; vertical-align:top; white-space:nowrap; }
-    table.db-table thead th { position:sticky; top:0; background:#103e3a; color:#fff; z-index:1; font-weight:600; }
-    table.db-table tbody tr:hover { background:#f9fbfc; }
-    table.db-table td.editable { cursor:cell; min-width:80px; }
-    table.db-table td.editable:hover { background:#fff8d8; }
-    table.db-table td.editing { padding:0; }
-    table.db-table td.editing input, table.db-table td.editing select {
-      width:100%; box-sizing:border-box; padding:6px 8px; border:2px solid #2e7d32;
-      font-size:12.5px; outline:none; background:#fffce8;
-    }
-    .row-actions { display:flex; gap:4px; }
-    .row-actions button { padding:3px 8px; font-size:11px; border-radius:4px; border:0; cursor:pointer; }
-    .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
-    .pill-pending { background:#fff3cd; color:#856404; }
-    .pill-completed { background:#d4edda; color:#155724; }
-    .raw-mode { font-family: ui-monospace, Menlo, monospace; font-size:11.5px; }
+    .shell { max-width:1380px; margin:0 auto; padding:28px 24px 48px; }
+    .page-head { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin-bottom:20px; }
+    .eyebrow { color:#2f6e69; font-size:12px; font-weight:800; letter-spacing:.08em; }
+    h1 { margin:4px 0 6px; color:#17324d; }
+    .desc { color:#6d7f88; margin:0; font-size:13px; }
+    .primary-link { display:inline-block; padding:10px 15px; color:#fff; background:#cf563e; border-radius:8px; text-decoration:none; font-weight:700; }
+    .kpis { display:grid; grid-template-columns:repeat(5, minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+    .kpi, .card { background:#fff; border:1px solid #e0e8ea; border-radius:12px; box-shadow:0 2px 8px rgba(16,62,58,.05); }
+    .kpi { padding:16px; }
+    .kpi span { display:block; color:#71838b; font-size:12px; }
+    .kpi strong { display:block; color:#103e3a; font-size:25px; margin-top:5px; font-variant-numeric:tabular-nums; }
+    .grid { display:grid; grid-template-columns:1.35fr .65fr; gap:16px; }
+    .card { padding:18px; }
+    .card.full { grid-column:1/-1; }
+    .card h2 { margin:0 0 4px; font-size:17px; color:#17324d; }
+    .card-sub { margin:0 0 14px; color:#7a8a91; font-size:12px; }
+    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    th, td { padding:9px 10px; border-bottom:1px solid #edf1f2; text-align:left; }
+    th { color:#60737b; font-size:11.5px; background:#f7f9fa; }
+    td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .share { display:flex; align-items:center; gap:8px; min-width:150px; }
+    .track { flex:1; height:7px; background:#e9eff0; border-radius:8px; overflow:hidden; }
+    .fill { height:100%; background:#2f6e69; border-radius:8px; }
+    .note-list { margin:0; padding-left:18px; color:#50636b; font-size:13px; line-height:1.7; }
+    .empty { color:#7a8a91; text-align:center; padding:28px 10px; }
+    .saved-table-wrap { overflow:auto; }
+    @media (max-width:900px) { .kpis{grid-template-columns:repeat(2,1fr)} .grid{grid-template-columns:1fr} .page-head{align-items:flex-start;flex-direction:column} }
   </style>
 </head>
 <body>
   <nav class="topnav">
     <strong>KTL TestMate</strong>
-    <a href="./">관리자</a>
-    <a href="./db.html" class="active">DB 콘솔</a>
-    <a href="./stats.html">통계 콘솔</a>
-    <a href="../applicant/">신청자</a>
-    <span style="margin-left:auto; font-size:12px; opacity:.8;">SQLite · applications + samples</span>
+    <a href="./index.html">관리자</a>
+    <a href="./db.html" class="active">데이터 요약</a>
+    <a href="./stats.html">통계 시각화</a>
+    <a href="./result-entry.html">결과 입력</a>
   </nav>
 
-  <main class="db-shell">
-    <div class="db-toolbar">
-      <select id="filterStatus">
-        <option value="">전체 상태</option>
-        <option value="pending">pending</option>
-        <option value="completed">completed</option>
-      </select>
-      <input id="filterText" type="search" placeholder="검색 (회사/신청인/분류/시료/메모…)" style="min-width:280px;" />
-      <button id="reloadBtn" class="btn btn-ghost" type="button">새로고침</button>
-      <button id="rawToggle" class="btn btn-ghost" type="button">전체 컬럼 보기</button>
-      <button id="exportBtn" class="btn btn-ghost" type="button">CSV 내보내기</button>
-      <button id="exportXlsxBtn" class="btn btn-ghost" type="button">Excel 내보내기</button>
-      <label style="display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:#345; padding:4px 10px; background:#fff; border:1px solid #cdd5d8; border-radius:6px; cursor:pointer;">
-        <input id="piiToggle" type="checkbox" /> 🔒 개인정보 마스킹
-      </label>
-      <span id="dbSummary" class="db-summary"></span>
-    </div>
+  <main class="shell">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">DATA OVERVIEW</div>
+        <h1>학습·운영 데이터 한눈에 보기</h1>
+        <p class="desc">복잡한 DB 편집 기능 대신, 모델에 사용된 대표 데이터와 관리자가 저장한 결과를 요약합니다.</p>
+      </div>
+      <a class="primary-link" href="./result-entry.html">새 결과 입력</a>
+    </header>
 
-    <p style="font-size:12px; color:#678; margin:4px 0 12px;">
-      💡 셀을 클릭하면 그 자리에서 편집할 수 있습니다 (Enter 저장 / Esc 취소).
-      행 끝의 🗑 버튼으로 영구 삭제됩니다.
-    </p>
+    <section class="kpis" aria-label="데이터 요약 지표">
+      <article class="kpi"><span>처리일수 학습 데이터</span><strong id="trainingRows">-</strong></article>
+      <article class="kpi"><span>원본 접수 데이터</span><strong id="rawRows">-</strong></article>
+      <article class="kpi"><span>사업구분</span><strong id="businessCount">-</strong></article>
+      <article class="kpi"><span>예측 가능 분류</span><strong id="categoryCount">-</strong></article>
+      <article class="kpi"><span>관리자 저장 결과</span><strong id="savedCount">0</strong></article>
+    </section>
 
-    <div class="db-table-wrap">
-      <table class="db-table" id="dbTable">
-        <thead id="dbHead"></thead>
-        <tbody id="dbBody"></tbody>
-      </table>
-    </div>
+    <section class="grid">
+      <article class="card">
+        <h2>사업별 대표 데이터</h2>
+        <p class="card-sub">처리일수 유효 학습 데이터 기준 · 표본수와 평균 처리일수</p>
+        <div style="overflow:auto;">
+          <table>
+            <thead><tr><th>사업구분</th><th class="num">표본수</th><th>데이터 비중</th><th class="num">평균</th><th class="num">중앙값</th></tr></thead>
+            <tbody id="businessRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>데이터 해석 포인트</h2>
+        <p class="card-sub">발표와 모델 운영 시 확인할 항목</p>
+        <ul class="note-list">
+          <li>사업별 데이터 규모 차이가 커서 전체 평균만으로 판단하기 어렵습니다.</li>
+          <li>처리일수는 긴 꼬리를 가지므로 평균과 중앙값을 함께 봐야 합니다.</li>
+          <li>접수량 예측은 7일 전 접수량과 최근 이동평균의 영향이 큽니다.</li>
+          <li>완료 결과를 꾸준히 입력하면 최신 운영 데이터로 재학습할 수 있습니다.</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>최근 관리자 저장 결과</h2>
+        <p class="card-sub">결과 입력 페이지에서 저장한 구조화 데이터 · 현재 브라우저에 보관</p>
+        <div class="saved-table-wrap">
+          <table>
+            <thead><tr><th>접수번호</th><th>사업구분</th><th>중분류</th><th>소분류</th><th class="num">실제 처리일</th><th>결과</th><th>저장시각</th></tr></thead>
+            <tbody id="savedRows"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
   </main>
 
-  <footer id="appFooter" style="text-align:center; padding:14px 16px; font-size:11px; color:#789; border-top:1px solid #e1e6ea; margin-top:20px;">
-    KTL TestMate · <span id="versionLabel">v? · ?</span>
-  </footer>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="./mask.js"></script>
-  <script src="./version.js"></script>
+  <script src="./precomputed_results.js"></script>
   <script src="./db.js"></script>
 </body>
 </html>

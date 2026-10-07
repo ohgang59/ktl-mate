@@ -6,7 +6,7 @@
     <title>관리자 화면 - 시험 접수 현황</title>
     <link rel="stylesheet" href="./styles.css" />
     <style>
-      .topnav { padding: 12px 24px; background: #103e3a; color: #fff; display:flex; gap:16px; align-items:center; }
+      .topnav { padding: 12px 24px; background: #103e3a; color: #fff; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
       .topnav a { color:#fff; text-decoration:none; font-weight:600; opacity:.85; }
       .topnav a.active { opacity:1; border-bottom:2px solid #ffd166; }
       .shap-box { margin-top:12px; padding:10px; background:#f4f7f8; border-radius:8px; font-size:13px; }
@@ -57,15 +57,16 @@
       .completion-grid input, .completion-grid select, .completion-grid textarea { width:100%; box-sizing:border-box; padding:7px 8px; border:1px solid #c7d5d2; border-radius:6px; background:#fff; }
       .completion-grid textarea { min-height:64px; resize:vertical; }
       .completion-actions { display:flex; justify-content:flex-end; margin-top:12px; }
+      .metric-action { display:inline-block; margin-top:5px; color:#3067a6; font-size:11px; font-weight:700; text-decoration:none; }
     </style>
   </head>
   <body>
     <nav class="topnav">
       <strong>KTL TestMate</strong>
-      <a href="./" class="active">관리자</a>
-      <a href="./db.html">DB 콘솔</a>
-      <a href="./stats.html">통계 콘솔</a>
-      <a href="../applicant/">신청자</a>
+      <a href="./index.html" class="active">관리자</a>
+      <a href="./db.html">데이터 요약</a>
+      <a href="./stats.html">통계 시각화</a>
+      <a href="./result-entry.html">결과 입력</a>
     </nav>
     <div class="admin-shell">
       <main class="admin-app">
@@ -92,6 +93,7 @@
             <p>자동 수집 학습 건수</p>
             <strong id="collectedCount">0</strong>
             <span>완료 결과 기반</span>
+            <a class="metric-action" href="./result-entry.html">결과 입력하기 →</a>
           </article>
           <article class="donut-card">
             <div id="donutChart" class="donut-chart" aria-label="이번달 대비 오늘 접수 비율"></div>
@@ -113,7 +115,7 @@
         <section id="hotspotBanner" hidden style="margin: 0 0 14px; padding:12px 16px; background:#fff8e1; border-left:4px solid #ffb300; border-radius:8px;">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
             <strong style="color:#103e3a;">🔮 다음달 사전 대비 권고</strong>
-            <a href="./stats.html" style="margin-left:auto; font-size:12px; color:#3067a6;">전체 통계 콘솔 →</a>
+            <a href="./stats.html" style="margin-left:auto; font-size:12px; color:#3067a6;">통계 시각화 보기 →</a>
           </div>
           <div id="hotspotList" style="font-size:12.5px; color:#234;"></div>
         </section>

@@ -3,175 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>관리자 통계 콘솔</title>
+  <title>관리자 통계 시각화</title>
   <link rel="stylesheet" href="./styles.css" />
   <style>
-    body { background:#f4f7f8; }
-    .topnav { padding: 12px 24px; background:#103e3a; color:#fff; display:flex; gap:16px; align-items:center; }
-    .topnav a { color:#fff; text-decoration:none; font-weight:600; opacity:.85; }
+    body { background:#f4f7f8; color:#203540; }
+    .topnav { padding:12px 24px; background:#103e3a; color:#fff; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+    .topnav a { color:#fff; text-decoration:none; font-weight:650; opacity:.82; }
     .topnav a.active { opacity:1; border-bottom:2px solid #ffd166; }
-    .stats-shell { padding:24px; max-width:1500px; margin:0 auto; }
-    .kpi-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:18px; }
-    .kpi { background:#fff; border-radius:10px; padding:14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .kpi p { margin:0; font-size:12px; color:#678; }
-    .kpi strong { display:block; font-size:26px; color:#103e3a; margin-top:4px; }
-    .kpi span { font-size:11px; color:#9aa; }
-    .stats-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
-    .stats-toolbar select { padding:6px 10px; border:1px solid #cdd5d8; border-radius:6px; background:#fff; font-size:13px; }
-    .grid { display:grid; gap:16px; grid-template-columns: 1fr 1fr; }
-    .card { background:#fff; border-radius:10px; padding:14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .card h3 { margin:0 0 6px; font-size:14px; color:#103e3a; }
-    .card .sub { color:#789; font-size:11px; margin-bottom:8px; }
-    .card.full { grid-column: 1 / -1; }
-    .chart-wrap { position:relative; height: 280px; }
-    .heatmap { display:grid; grid-template-columns: 60px repeat(12, 1fr); gap:2px; font-size:10.5px; }
-    .heatmap .h-cell { padding:4px 2px; text-align:center; border-radius:3px; color:#103e3a; }
-    .heatmap .h-label { color:#678; padding:4px 0; text-align:right; padding-right:6px; }
-    table.mini { width:100%; border-collapse:collapse; font-size:12.5px; }
-    table.mini th, table.mini td { padding:4px 8px; border-bottom:1px solid #eef1f3; text-align:left; }
-    table.mini thead th { background:#f4f7f8; }
-    table.mini td.num { text-align:right; font-variant-numeric: tabular-nums; }
+    .shell { max-width:1420px; margin:0 auto; padding:28px 24px 50px; }
+    .eyebrow { color:#2f6e69; font-size:12px; font-weight:800; letter-spacing:.08em; }
+    h1 { margin:4px 0 6px; color:#17324d; }
+    .lead { color:#6d7f88; margin:0 0 20px; font-size:13px; }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+    .kpi, .card { background:#fff; border:1px solid #dfe7e9; border-radius:12px; box-shadow:0 2px 8px rgba(16,62,58,.05); }
+    .kpi { padding:16px 18px; }
+    .kpi span { color:#71838b; font-size:12px; }
+    .kpi strong { display:block; color:#103e3a; font-size:26px; margin:5px 0 2px; }
+    .kpi small { color:#91a0a6; font-size:10.5px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .card { padding:18px; min-width:0; }
+    .card.full { grid-column:1/-1; }
+    .card h2 { margin:0 0 4px; color:#17324d; font-size:17px; }
+    .sub { margin:0 0 16px; color:#7a8a91; font-size:11.5px; }
+    .bar-chart { display:grid; gap:9px; }
+    .bar-row { display:grid; grid-template-columns:125px minmax(80px,1fr) 62px; gap:9px; align-items:center; font-size:11.5px; }
+    .bar-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#40545e; }
+    .bar-track { height:12px; background:#e9eff0; border-radius:9px; overflow:hidden; }
+    .bar-fill { height:100%; min-width:2px; background:#2f6e69; border-radius:9px; }
+    .bar-fill.orange { background:#f0a33b; }
+    .bar-fill.blue { background:#3067a6; }
+    .bar-value { text-align:right; font-weight:700; color:#40545e; font-variant-numeric:tabular-nums; }
+    .forecast-chart { height:260px; display:flex; align-items:flex-end; gap:8px; padding:18px 4px 0; border-bottom:1px solid #cfdadc; }
+    .forecast-col { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:5px; min-width:0; }
+    .forecast-value { font-size:9.5px; color:#52656e; }
+    .forecast-bar { width:68%; min-height:2px; background:#2f6e69; border-radius:5px 5px 0 0; }
+    .forecast-bar.weekend { background:#cbd6da; }
+    .forecast-label { font-size:9px; color:#7c8b92; white-space:nowrap; }
+    .legend { display:flex; gap:16px; justify-content:flex-end; margin-top:10px; color:#71838b; font-size:10.5px; }
+    .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; }
+    .insights { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .insight { padding:15px; border-radius:10px; background:#f7faf9; border-left:4px solid #2f6e69; }
+    .insight.warn { background:#fff7ed; border-color:#f0a33b; }
+    .insight.risk { background:#fff1f0; border-color:#cf563e; }
+    .insight strong { display:block; color:#17324d; font-size:13px; margin-bottom:5px; }
+    .insight p { margin:0; color:#5d7079; font-size:11.5px; line-height:1.55; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th, td { padding:8px 9px; border-bottom:1px solid #edf1f2; text-align:left; }
+    th { background:#f7f9fa; color:#60737b; font-size:11px; }
+    td.num, th.num { text-align:right; }
+    @media (max-width:900px) { .kpis{grid-template-columns:repeat(2,1fr)} .grid{grid-template-columns:1fr} .card.full{grid-column:auto} .insights{grid-template-columns:1fr} .bar-row{grid-template-columns:100px 1fr 55px} }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <nav class="topnav">
     <strong>KTL TestMate</strong>
-    <a href="./">관리자</a>
-    <a href="./db.html">DB 콘솔</a>
-    <a href="./stats.html" class="active">통계 콘솔</a>
-    <a href="../applicant/">신청자</a>
-    <span style="margin-left:auto; font-size:12px; opacity:.8;">통계 · 학습 데이터 1,166,203건 + 운영 DB</span>
+    <a href="./index.html">관리자</a>
+    <a href="./db.html">데이터 요약</a>
+    <a href="./stats.html" class="active">통계 시각화</a>
+    <a href="./result-entry.html">결과 입력</a>
   </nav>
 
-  <main class="stats-shell">
-    <section class="kpi-row">
-      <div class="kpi"><p>운영 DB · 총 신청</p><strong id="kpiTotal">-</strong><span>SQLite applications</span></div>
-      <div class="kpi"><p>오늘 접수</p><strong id="kpiToday">-</strong><span>실시간</span></div>
-      <div class="kpi"><p>이번달 접수</p><strong id="kpiMonth">-</strong><span>월 누적</span></div>
-      <div class="kpi"><p>대기중</p><strong id="kpiPending">-</strong><span>pending</span></div>
-      <div class="kpi"><p>완료</p><strong id="kpiCompleted">-</strong><span>completed</span></div>
+  <main class="shell">
+    <div class="eyebrow">MODEL & DATA INSIGHT</div>
+    <h1>시험 접수 데이터 통계 시각화</h1>
+    <p class="lead">사전 학습된 데이터와 예측 결과를 사용하므로 별도 서버 연결 없이도 대표 지표를 확인할 수 있습니다.</p>
+
+    <section class="kpis">
+      <article class="kpi"><span>원본 데이터</span><strong id="rawRows">-</strong><small>2006-01-27 ~ 2023-02-28</small></article>
+      <article class="kpi"><span>처리일수 학습 데이터</span><strong id="trainingRows">-</strong><small>유효 처리일수 기준</small></article>
+      <article class="kpi"><span>접수량 예측 WAPE</span><strong id="volumeWape">-</strong><small>사업별 마지막 365일 검증</small></article>
+      <article class="kpi"><span>처리일수 검증 MAE</span><strong id="processingMae">-</strong><small>LightGBM 회귀 모델</small></article>
     </section>
 
-    <div class="stats-toolbar">
-      <label>사업구분
-        <select id="bizFilter"><option value="">전체</option></select>
-      </label>
-      <label>중분류
-        <select id="midFilter"><option value="">전체</option></select>
-      </label>
-      <span style="font-size:12px; color:#789;">선택하면 아래 차트가 필터링됩니다.</span>
-    </div>
+    <section class="grid">
+      <article class="card">
+        <h2>사업별 학습 데이터 비중</h2>
+        <p class="sub">처리일수 모델에 사용된 유효 표본 기준</p>
+        <div id="volumeBars" class="bar-chart"></div>
+      </article>
 
-    <div class="grid">
-      <div class="card">
-        <h3>① 사업구분별 평균 처리일수</h3>
-        <div class="sub">학습 데이터 (2006–2023) 집계 · 평균 처리일수가 큰 순서대로</div>
-        <div class="chart-wrap"><canvas id="bizChart"></canvas></div>
-      </div>
+      <article class="card">
+        <h2>사업별 평균 처리일수</h2>
+        <p class="sub">사업 특성에 따라 처리기간 차이가 크게 나타남</p>
+        <div id="durationBars" class="bar-chart"></div>
+      </article>
 
-      <div class="card">
-        <h3>② 중분류 평균 처리일수 (상위 15)</h3>
-        <div class="sub">선택한 사업구분 내 · 평균 큰 순</div>
-        <div class="chart-wrap"><canvas id="midChart"></canvas></div>
-      </div>
+      <article class="card full">
+        <h2>향후 14일 예상 접수량</h2>
+        <p class="sub">사전 계산된 전체 사업 접수량 예측 · 주말은 별도 색상 표시</p>
+        <div id="forecastChart" class="forecast-chart"></div>
+        <div class="legend"><span><i class="dot" style="background:#2f6e69"></i>평일</span><span><i class="dot" style="background:#cbd6da"></i>주말</span></div>
+      </article>
 
-      <div class="card full">
-        <h3>③ 월별 접수량 추세</h3>
-        <div class="sub">전체 학습 데이터 · 월별 raw 접수 건수</div>
-        <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
-      </div>
+      <article class="card">
+        <h2>접수량 예측 영향 변수</h2>
+        <p class="sub">전역 SHAP 비중 · 값이 클수록 예측에 미치는 영향이 큼</p>
+        <div id="shapBars" class="bar-chart"></div>
+      </article>
 
-      <div class="card">
-        <h3>④ 연도별 접수량</h3>
-        <div class="sub">학습 데이터 연간 추이</div>
-        <div class="chart-wrap"><canvas id="yearlyChart"></canvas></div>
-      </div>
-
-      <div class="card">
-        <h3>⑤ 월별 평균 혼잡도 (계절성)</h3>
-        <div class="sub">전체 평균 = 1.0 기준의 상대값</div>
-        <div class="chart-wrap"><canvas id="seasonalityChart"></canvas></div>
-      </div>
-
-      <div class="card full">
-        <h3>⑥ 소분류 처리일수 분포 (선택된 중분류 내)</h3>
-        <div class="sub">평균 / 중앙값 / 표준편차 / 표본수</div>
-        <div style="max-height:340px; overflow:auto;">
-          <table class="mini" id="subTable">
-            <thead><tr><th>소분류</th><th class="num">평균(일)</th><th class="num">중앙값</th><th class="num">σ</th><th class="num">표본 N</th></tr></thead>
-            <tbody></tbody>
-          </table>
+      <article class="card">
+        <h2>사업별 처리 특성</h2>
+        <p class="sub">평균과 중앙값 차이가 크면 긴 처리기간 사례가 많다는 의미</p>
+        <div style="overflow:auto; max-height:360px;">
+          <table><thead><tr><th>사업구분</th><th class="num">표본</th><th class="num">평균</th><th class="num">중앙값</th><th class="num">차이</th></tr></thead><tbody id="businessTable"></tbody></table>
         </div>
-      </div>
+      </article>
 
-      <div class="card full">
-        <h3>⑦ 운영 DB · 상태별·사업구분별 분포</h3>
-        <div class="sub">현재 운영 중인 신청서 (SQLite) — 사업구분 × 상태 stacked bar</div>
-        <div class="chart-wrap"><canvas id="opsChart"></canvas></div>
-      </div>
-
-      <div class="card full">
-        <h3>⑧ 운영 DB · AI 예측 vs 실제 처리일수</h3>
-        <div class="sub">완료된 신청에 한해 산점도 (점선 = 완벽 예측)</div>
-        <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
-      </div>
-
-      <div class="card full" style="background:#fdecea; border-left:4px solid #e53935;">
-        <h3>🚨 ⑧-1 이상치 (예측 대비 실제 |z| ≥ 2)</h3>
-        <div class="sub">소분류 평균 표준편차 기준. 운영 데이터 누적 시 갱신.</div>
-        <div id="outlierSummary" style="font-size:12.5px; color:#7a1c14; margin-bottom:6px;"></div>
-        <div style="overflow-x:auto;">
-          <table id="outlierTable" style="width:100%; border-collapse:collapse; font-size:12.5px;">
-            <thead><tr style="background:#fff;"><th style="padding:6px;">#</th><th>분류</th><th>시료</th><th>예측(일)</th><th>실제(일)</th><th>오차</th><th>z-score</th></tr></thead>
-            <tbody></tbody>
-          </table>
+      <article class="card full">
+        <h2>관리자 핵심 해석</h2>
+        <p class="sub">현재 데이터에서 운영 의사결정에 바로 사용할 수 있는 특징</p>
+        <div class="insights">
+          <div class="insight"><strong>과거 접수 흐름이 가장 중요</strong><p>7일 전 접수량과 최근 28·364일 평균이 접수량 예측의 핵심입니다. 달력 정보만 사용한 모델보다 이동평균을 포함한 모델이 더 안정적입니다.</p></div>
+          <div class="insight warn"><strong>사업별 분리 해석 필요</strong><p>사업별 표본수와 처리일수 차이가 큽니다. 전체 평균만 보지 말고 사업구분별 지표와 예측 오차를 함께 관리해야 합니다.</p></div>
+          <div class="insight risk"><strong>최신 결과의 지속 수집 필요</strong><p>현재 학습 데이터의 최신일은 2023년입니다. 관리자 결과 입력 데이터를 누적하면 최근 운영 변화와 지연 사유를 다음 재학습에 반영할 수 있습니다.</p></div>
         </div>
-      </div>
-
-      <div class="card full" style="background:#fff8e1; border-left:4px solid #ffb300;">
-        <h3>🔮 ⑨ 향후 6개월 접수량 예측 + 최근 12개월 추이</h3>
-        <div class="sub">최근 12개월 평균(deseasoned) × 월별 계절성 인자 · 백테스트 MAE 표시 · 80% 신뢰 구간</div>
-        <div id="forecastSummary" style="font-size:12.5px; color:#234; margin-bottom:6px;"></div>
-        <div class="chart-wrap" style="height:320px;"><canvas id="forecastChart"></canvas></div>
-      </div>
-
-      <div class="card full" style="background:#ffeaea; border-left:4px solid #c62828;">
-        <h3>⚠️ ⑩ 다음달 몰릴 것으로 예상되는 분야 (사전 대비 권고)</h3>
-        <div class="sub">계절성 분석 — 해당 중분류의 연평균 대비 다음달 비율(next_ratio)이 1.0 이상이면 상대적 성수기</div>
-        <div style="max-height:340px; overflow:auto;">
-          <table class="mini" id="hotspotTable">
-            <thead><tr>
-              <th>#</th><th>사업구분</th><th>중분류</th>
-              <th class="num">이번달 비율</th>
-              <th class="num">다음달 비율</th>
-              <th class="num">다음달 예상</th>
-              <th class="num">연 누적</th>
-              <th>경보</th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card full">
-        <h3>🌡️ ⑪ 사업구분 × 월별 분포 히트맵</h3>
-        <div class="sub">각 사업구분의 월별 접수 비중(%) — 진할수록 그 달에 집중됨</div>
-        <div id="heatBox" style="overflow:auto; padding:6px 0;"></div>
-      </div>
-
-      <div class="card full">
-        <h3>📈 ⑫ 사업구분별 전년 대비 성장률 (YoY)</h3>
-        <div class="sub">최근 2개 연도 비교 · 빨강=하락, 초록=상승</div>
-        <div class="chart-wrap" style="height:300px;"><canvas id="yoyChart"></canvas></div>
-      </div>
-    </div>
+      </article>
+    </section>
   </main>
 
-  <footer id="appFooter" style="text-align:center; padding:14px 16px; font-size:11px; color:#789; border-top:1px solid #e1e6ea; margin-top:20px;">
-    KTL TestMate · <span id="versionLabel">v? · ?</span>
-  </footer>
-  <script src="./version.js"></script>
+  <script src="./precomputed_results.js"></script>
   <script src="./stats.js"></script>
 </body>
 </html>
