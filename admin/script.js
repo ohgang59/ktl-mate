@@ -182,16 +182,34 @@ function updateClock() {
   currentTime.textContent = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date());
 }
 
+function renderDashboardCounts(today, month, collected) {
+  todayCountEl.textContent = today;
+  monthCountEl.textContent = month;
+  collectedCountEl.textContent = collected;
+  const pct = month === 0 ? 0 : Math.round((today / month) * 100);
+  donutPercent.textContent = `${pct}%`;
+  donutChart.style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, #e4ecef 0deg)`;
+}
+
+function renderDemoDashboard() {
+  const now = new Date();
+  const examples = loadIntakeExamples();
+  const receivedThisMonth = examples.filter((application) => {
+    const receivedAt = new Date(application.received_at);
+    return receivedAt.getFullYear() === now.getFullYear() && receivedAt.getMonth() === now.getMonth();
+  });
+  const today = receivedThisMonth.filter((application) => isSameDate(new Date(application.received_at), now)).length;
+  const collected = examples.filter((application) => application.status === "completed").length + getStoredResultCount();
+  renderDashboardCounts(today, receivedThisMonth.length, collected);
+}
+
 async function refreshDashboard() {
   try {
     const d = await api("/api/dashboard");
-    todayCountEl.textContent = d.today;
-    monthCountEl.textContent = d.month;
-    collectedCountEl.textContent = (d.collected ?? 0) + getStoredResultCount();
-    const pct = d.month === 0 ? 0 : Math.round((d.today / d.month) * 100);
-    donutPercent.textContent = `${pct}%`;
-    donutChart.style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, #e4ecef 0deg)`;
-  } catch {}
+    renderDashboardCounts(d.today, d.month, (d.collected ?? 0) + getStoredResultCount());
+  } catch {
+    renderDemoDashboard();
+  }
 }
 
 function getPrecomputedReceiptForecast() {
@@ -741,7 +759,7 @@ function bind() {
 
 (async function init() {
   updateClock();
-  collectedCountEl.textContent = getStoredResultCount();
+  renderDemoDashboard();
   const staticData = window.KTL_PRECOMPUTED_RESULTS || {};
   catalog = staticData.catalog || {};
   if (Object.keys(catalog).length) populatePredictSelects();
