@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>한국산업기술시험원 시험 접수</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20261007-rule" />
     <style>
       .topnav { padding: 12px 24px; background: #103e3a; color: #fff; display:flex; gap:16px; align-items:center; }
       .topnav a { color:#fff; text-decoration:none; font-weight:600; opacity:.85; }
@@ -18,8 +18,29 @@
       .chat-msg.bot .bubble { background:#eef3f4; color:#234; }
       .chat-input { display:flex; gap:8px; margin-top:8px; }
       .chat-input input { flex:1; padding:8px 10px; border:1px solid #d9e1e3; border-radius:8px; }
-      .recommend-card { padding:8px 10px; background:#f6fafa; border:1px solid #d9e1e3; border-radius:8px; margin-bottom:6px; font-size:13px; }
-      .recommend-card strong { display:block; color:#126b67; }
+      .recommendation-message { margin:12px 0 8px; color:#58706d; font-size:12px; font-weight:700; }
+      .recommendation-list { display:grid; gap:10px; }
+      .recommend-card { padding:12px; background:#fff; border:1px solid #d9e1e3; border-radius:12px; box-shadow:0 3px 10px rgba(23,32,38,.05); font-size:12px; }
+      .recommend-card.best { border-color:#7bb7b0; background:linear-gradient(135deg,#f1faf8 0%,#fff 72%); box-shadow:0 6px 16px rgba(18,107,103,.12); }
+      .recommend-card-head { display:flex; align-items:center; gap:7px; margin-bottom:10px; }
+      .recommend-rank { display:grid; width:25px; height:25px; place-items:center; border-radius:50%; background:#e7f2f0; color:#126b67; font-weight:900; }
+      .recommend-card.best .recommend-rank { background:#126b67; color:#fff; }
+      .recommend-card-title { color:#243d3a; font-size:13px; font-weight:900; }
+      .recommend-deadline { margin-left:auto; border-radius:999px; padding:3px 7px; background:#eaf6ee; color:#33724a; font-size:10px; font-weight:800; }
+      .recommend-deadline.late { background:#fff0ed; color:#ad4938; }
+      .recommend-route { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:7px; border-radius:9px; padding:9px; background:#f6f8f8; }
+      .recommend-date { display:grid; gap:2px; }
+      .recommend-date span { color:#71807f; font-size:10px; font-weight:700; }
+      .recommend-date b { color:#172f2c; font-size:13px; white-space:nowrap; }
+      .recommend-arrow { color:#7a918e; font-weight:900; }
+      .recommend-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+      .recommend-chip { border-radius:999px; padding:4px 8px; background:#edf2f3; color:#405552; font-weight:800; }
+      .recommend-chip.congestion { background:#fff4d9; color:#7f5a08; }
+      .rule-note { margin:7px 0 0; padding:7px 9px; border-radius:7px; background:#eef6f4; color:#41635f; font-size:11px; line-height:1.45; }
+      @media (max-width: 780px) {
+        .chat-input { flex-direction:column; }
+        .chat-input input { width:100%; min-height:44px; }
+      }
     </style>
   </head>
   <body>
@@ -49,8 +70,9 @@
           </label>
           <button id="recButton" class="submit-button" type="button">추천받기</button>
         </div>
-        <div id="recommendationList" class="recommendation-list" aria-label="추천일자 항목" style="margin-top:10px;"></div>
         <p id="recommendationMessage" class="recommendation-message" role="status" aria-live="polite">입력 후 추천받기를 누르세요.</p>
+        <div id="recommendationList" class="recommendation-list" aria-label="추천일자 항목"></div>
+        <p class="rule-note">서버 미연결 시에도 과거 사업별 처리일수·혼잡도 규칙으로 자동 계산됩니다.</p>
 
         <section class="chat-panel">
           <p class="eyebrow">AI 상담형 추천</p>
@@ -196,7 +218,7 @@
         </div>
       </aside>
     </main>
-    <script src="../admin/precomputed_results.js"></script>
-    <script src="./script.js"></script>
+    <script src="../admin/precomputed_results.js?v=20261007-rule"></script>
+    <script src="./script.js?v=20261007-rec2"></script>
   </body>
 </html>

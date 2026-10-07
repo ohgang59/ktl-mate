@@ -58,6 +58,15 @@
       .completion-grid textarea { min-height:64px; resize:vertical; }
       .completion-actions { display:flex; justify-content:flex-end; margin-top:12px; }
       .metric-action { display:inline-block; margin-top:5px; color:#3067a6; font-size:11px; font-weight:700; text-decoration:none; }
+      .intake-guide { margin:10px 0 0; color:#667976; font-size:12px; }
+      .intake-notice { min-height:18px; margin-top:7px; color:#126b67; font-size:12px; font-weight:800; }
+      .intake-notice:empty { display:none; }
+      .intake-example-row { transition:background .16s ease, transform .16s ease; }
+      .intake-example-row:hover { background:#eef7f5; }
+      .intake-example-row td:first-child::before { content:"예시"; display:inline-flex; margin-right:7px; border-radius:999px; padding:2px 6px; background:#eef3f4; color:#60716f; font-size:9px; font-weight:900; vertical-align:2px; }
+      .intake-receive-button { display:inline-flex; align-items:center; justify-content:center; min-height:34px; border:0; border-radius:8px; padding:0 13px; background:#126b67; color:#fff; cursor:pointer; font-size:12px; font-weight:900; white-space:nowrap; }
+      .intake-receive-button:hover { background:#0a514e; }
+      .intake-status-badge { display:inline-flex; align-items:center; min-height:32px; border-radius:999px; padding:0 11px; background:#e8f5ee; color:#267044; font-size:12px; font-weight:900; white-space:nowrap; }
     </style>
   </head>
   <body>
@@ -123,10 +132,12 @@
         <section class="work-panel">
           <div class="panel-toolbar">
             <div class="view-tabs" role="tablist" aria-label="시험 상태">
-              <button id="pendingTab" class="tab-button active" type="button">미완료된 시험</button>
-              <button id="completedTab" class="tab-button" type="button">완료된 시험</button>
+              <button id="pendingTab" class="tab-button active" type="button">미접수 시험</button>
+              <button id="completedTab" class="tab-button" type="button">접수시험</button>
             </div>
             <span id="listSummary" class="list-summary"></span>
+            <p class="intake-guide">미접수 예시를 클릭하면 접수 처리 후 접수시험 목록으로 이동합니다.</p>
+            <p id="intakeNotice" class="intake-notice" role="status" aria-live="polite"></p>
           </div>
 
           <div class="table-wrap">
@@ -228,6 +239,6 @@
     <script src="./mask.js"></script>
     <script src="./version.js"></script>
     <script src="./precomputed_results.js"></script>
-    <script src="./script.js"></script>
+    <script src="./script.js?v=20261007-intake2"></script>
   </body>
 </html>

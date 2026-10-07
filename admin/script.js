@@ -12,6 +12,7 @@ const pendingTab = $("#pendingTab");
 const completedTab = $("#completedTab");
 const testTableBody = $("#testTableBody");
 const listSummary = $("#listSummary");
+const intakeNotice = $("#intakeNotice");
 const statusColumn = $("#statusColumn");
 const detailModal = $("#detailModal");
 const modalStatus = $("#modalStatus");
@@ -47,6 +48,38 @@ let currentApp = null;     // application currently in modal
 let editing = false;
 let receiptForecastData = null;
 let selectedReceiptForecastDate = null;
+const intakeDemoKey = "ktl-admin-intake-demo-v2";
+
+function demoDate(daysAgo, hour = 9) {
+  const value = new Date();
+  value.setDate(value.getDate() - daysAgo);
+  value.setHours(hour, 0, 0, 0);
+  return value.toISOString();
+}
+
+function defaultIntakeExamples() {
+  return [
+    { id: -1001, demo: true, status: "pending", biz: "전기인증", category: "전기용품안전인증(KC)시험", subcategory: "전기안전시험", sample_name: "AC/DC 어댑터 KTL-24", company: "한빛전자", applicant_name: "김민수", received_at: demoDate(0, 9), predicted_days: 16, predicted_complete_at: demoDate(-22, 18) },
+    { id: -1002, demo: true, status: "pending", biz: "디지털산업", category: "디지털산업 일반시험", subcategory: "전자파 적합성 시험", sample_name: "산업용 IoT 게이트웨이", company: "넥스트센서", applicant_name: "이서연", received_at: demoDate(0, 10), predicted_days: 21, predicted_complete_at: demoDate(-29, 18) },
+    { id: -1003, demo: true, status: "pending", biz: "기업지원", category: "KOLAS 공인시험", subcategory: "재료 물성 시험", sample_name: "알루미늄 합금 시편 A7", company: "대성소재", applicant_name: "박준호", received_at: demoDate(0, 11), predicted_days: 12, predicted_complete_at: demoDate(-16, 18) },
+    { id: -1004, demo: true, status: "pending", biz: "방폭인증", category: "방폭기기 안전인증시험", subcategory: "내압 방폭 시험", sample_name: "방폭형 모터 EX-220", company: "세진모터스", applicant_name: "최유진", received_at: demoDate(0, 13), predicted_days: 28, predicted_complete_at: demoDate(-38, 18) },
+    { id: -1101, demo: true, status: "completed", biz: "표준", category: "계측기 교정", subcategory: "압력계 교정", sample_name: "디지털 압력계 P-310", company: "정밀계측", applicant_name: "오지훈", received_at: demoDate(1, 14), predicted_days: 8, predicted_complete_at: demoDate(-10, 18) },
+    { id: -1102, demo: true, status: "completed", biz: "승강기인증", category: "승강기 부품 안전인증", subcategory: "제동장치 성능시험", sample_name: "승강기 브레이크 모듈", company: "미래엘리베이터", applicant_name: "정하늘", received_at: demoDate(2, 15), predicted_days: 19, predicted_complete_at: demoDate(-25, 18) },
+    { id: -1103, demo: true, status: "completed", biz: "형식승인", category: "방송통신기자재 시험", subcategory: "무선 성능시험", sample_name: "5G 라우터 R5", company: "코어네트웍스", applicant_name: "윤도현", received_at: demoDate(3, 11), predicted_days: 14, predicted_complete_at: demoDate(-19, 18) },
+  ];
+}
+
+function loadIntakeExamples() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(intakeDemoKey) || "null");
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch {}
+  return defaultIntakeExamples();
+}
+
+function saveIntakeExamples(items) {
+  localStorage.setItem(intakeDemoKey, JSON.stringify(items));
+}
 
 function getStoredResultCount() {
   try {
@@ -301,19 +334,46 @@ async function refreshAlerts() {
 async function refreshList() {
   pendingTab.classList.toggle("active", currentView === "pending");
   completedTab.classList.toggle("active", currentView === "completed");
-  statusColumn.textContent = currentView === "pending" ? "처리" : "완료 소요시간";
-  cache.applications = await api(`/api/applications?status=${currentView}`);
-  listSummary.textContent = `${cache.applications.length}건`;
+  statusColumn.textContent = currentView === "pending" ? "접수 처리" : "접수 상태";
+  try {
+    cache.applications = await api(`/api/applications?status=${currentView}`);
+  } catch {
+    let local = [];
+    try { local = JSON.parse(localStorage.getItem("ktl-applications-v1") || "[]"); } catch {}
+    cache.applications = local.filter((application) => application.status === currentView);
+  }
+  if (cache.applications.length === 0) {
+    cache.applications = loadIntakeExamples().filter((application) => application.status === currentView);
+  }
+  listSummary.textContent = `총 ${cache.applications.length}건`;
   if (cache.applications.length === 0) {
     testTableBody.innerHTML = `<tr><td colspan="4">표시할 시험이 없습니다.</td></tr>`;
     return;
   }
   testTableBody.innerHTML = cache.applications.map((a) => {
     const right = currentView === "pending"
-      ? `<button class="complete-button" type="button" data-complete-id="${a.id}">완료시험으로 변경</button>`
-      : `<span class="duration-badge">${a.completed_at ? fmtDur(a.received_at, a.completed_at) : "-"}</span>`;
-    return `<tr data-test-id="${a.id}"><td>${escapeHtml(a.category)}</td><td>${escapeHtml(a.subcategory)}</td><td class="sample-cell">${escapeHtml(a.sample_name || "-")}</td><td>${right}</td></tr>`;
+      ? (a.demo
+        ? `<button class="intake-receive-button" type="button" data-receive-id="${a.id}">접수하기</button>`
+        : a.local_only
+        ? `<span class="duration-badge">로컬 접수</span>`
+        : `<button class="complete-button" type="button" data-complete-id="${a.id}">완료시험으로 변경</button>`)
+      : (a.demo
+        ? `<span class="intake-status-badge">접수 완료</span>`
+        : `<span class="duration-badge">${a.completed_at ? fmtDur(a.received_at, a.completed_at) : "접수 완료"}</span>`);
+    return `<tr class="${a.demo ? "intake-example-row" : ""}" data-test-id="${a.id}" ${a.demo && currentView === "pending" ? 'title="클릭하면 접수시험으로 이동합니다"' : ""}><td>${escapeHtml(a.category)}</td><td>${escapeHtml(a.subcategory)}</td><td class="sample-cell">${escapeHtml(a.sample_name || "-")}</td><td>${right}</td></tr>`;
   }).join("");
+}
+
+async function receiveDemoApplication(id) {
+  const examples = loadIntakeExamples();
+  const application = examples.find((item) => item.id === id);
+  if (!application) return;
+  application.status = "completed";
+  application.received_at = new Date().toISOString();
+  saveIntakeExamples(examples);
+  currentView = "completed";
+  intakeNotice.textContent = `${application.sample_name} 시험을 접수했습니다. 접수시험 목록으로 이동했습니다.`;
+  await refreshList();
 }
 
 function detailSection(title, items) {
@@ -621,11 +681,14 @@ function bind() {
   pendingTab.addEventListener("click", () => { currentView = "pending"; refreshList(); });
   completedTab.addEventListener("click", () => { currentView = "completed"; refreshList(); });
   testTableBody.addEventListener("click", (e) => {
+    const receiveButton = e.target.closest("[data-receive-id]");
+    if (receiveButton) { e.stopPropagation(); receiveDemoApplication(Number(receiveButton.dataset.receiveId)); return; }
     const cb = e.target.closest("[data-complete-id]");
     if (cb) { e.stopPropagation(); completeApp(Number(cb.dataset.completeId)); return; }
     const row = e.target.closest("[data-test-id]");
     if (!row) return;
     const a = cache.applications.find((x) => x.id === Number(row.dataset.testId));
+    if (a?.demo && currentView === "pending") { receiveDemoApplication(a.id); return; }
     if (a) openDetail(a);
   });
   closeModalButton.addEventListener("click", () => detailModal.classList.add("hidden"));
@@ -702,6 +765,7 @@ function bind() {
     await refreshAlerts();
   } else {
     await refreshReceiptForecast();
+    await refreshList();
   }
   bind();
   setInterval(() => {

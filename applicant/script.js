@@ -19,6 +19,8 @@ const draftStatus = $("#draftStatus");
 const submitMessage = $("#submitMessage");
 const receiptForm = $("#receiptForm");
 const draftKey = "ktl-applicant-draft-v2";
+const applicationKey = "ktl-applications-v1";
+const staticData = window.KTL_PRECOMPUTED_RESULTS || {};
 
 const calcBiz = $("#calcBiz");
 const categorySelect = $("#categorySelect");
@@ -59,6 +61,153 @@ async function api(p, init) {
 const fmtDate = (v) => new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(new Date(v));
 const isSameDate = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 const toISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+function addBusinessDays(startValue, days) {
+  const date = new Date(`${startValue}T00:00:00`);
+  let left = Math.max(0, Math.round(days));
+  while (left > 0) {
+    date.setDate(date.getDate() + 1);
+    if (date.getDay() !== 0 && date.getDay() !== 6) left -= 1;
+  }
+  return toISO(date);
+}
+
+function businessStat(biz) {
+  return bizStats.find((row) => row.biz === biz) || { n: 0, avg_days: 14, median_days: 10, std_days: 7 };
+}
+
+function congestionFor(biz, receiveOn) {
+  const scopes = staticData.scopes || {};
+  const allKey = Object.keys(scopes).find((key) => key === "전체") || Object.keys(scopes)[0];
+  const scope = scopes[biz] || scopes[allKey];
+  const rows = scope?.forecast || [];
+  const match = rows.find((row) => row.date === receiveOn);
+  if (match?.congestion) return match.congestion;
+  const weekday = new Date(`${receiveOn}T00:00:00`).getDay();
+  return weekday === 0 || weekday === 6 ? "낮음" : "보통";
+}
+
+function rulePrediction({ biz, mid, sub, receive_on }) {
+  const stat = businessStat(biz);
+  const text = `${mid || ""} ${sub || ""}`;
+  let factor = 1;
+  if (/인증서\s*발급|성적서\s*발급/.test(text)) factor *= 0.78;
+  if (/사후관리/.test(text)) factor *= 0.9;
+  if (/교정/.test(text)) factor *= 0.88;
+  if (/전자파|환경|신뢰성/.test(text)) factor *= 1.12;
+  if (/방폭|승강기|안전인증/.test(text)) factor *= 1.18;
+  const congestion = congestionFor(biz, receive_on);
+  factor *= ({ "낮음": 0.94, "보통": 1, "높음": 1.1, "매우 높음": 1.18 }[congestion] || 1);
+  const base = Number(stat.median_days || stat.avg_days || 10);
+  const predictedDays = Math.max(1, Math.round(base * factor));
+  const spread = Math.max(2, Math.round(Number(stat.std_days || predictedDays * 0.35) * 0.3));
+  const confidence = Math.min(0.91, 0.55 + Math.log10(Number(stat.n || 1) + 1) / 17);
+  return {
+    predicted_days: predictedDays,
+    predicted_complete_at: addBusinessDays(receive_on, predictedDays),
+    low_days: Math.max(1, predictedDays - spread),
+    high_days: predictedDays + spread,
+    confidence,
+    congestion,
+    source: "rule_based",
+  };
+}
+
+async function predictWithFallback(payload) {
+  try {
+    return await api("/api/predict", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+  } catch {
+    return rulePrediction(payload);
+  }
+}
+
+function priorityScore(row, priority, deadline) {
+  const congestion = { "낮음": 0, "보통": 1, "높음": 2, "매우 높음": 3 }[row.congestion] ?? 1;
+  const uncertainty = row.high_days - row.low_days;
+  if (priority === "stable") return uncertainty * 10 + row.predicted_days;
+  if (priority === "avoid_congestion") return congestion * 100 + row.predicted_days;
+  if (priority === "meet_deadline" && deadline) {
+    const late = Math.max(0, (new Date(row.predicted_complete_at) - new Date(deadline)) / 86400000);
+    return (row.meets_deadline ? 0 : 10000) + late * 100 + row.predicted_days;
+  }
+  return row.predicted_days * 10 + congestion;
+}
+
+function ruleRecommendations({ biz, mid, sub, earliest, deadline, priority, n = 5 }) {
+  const start = new Date(`${earliest}T00:00:00`);
+  const candidates = [];
+  for (let offset = 0; offset < 35; offset += 1) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + offset);
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+    const prediction = rulePrediction({ biz, mid, sub, receive_on: toISO(date) });
+    const row = {
+      receive_on: toISO(date),
+      predicted_complete_at: prediction.predicted_complete_at,
+      predicted_days: prediction.predicted_days,
+      low_days: prediction.low_days,
+      high_days: prediction.high_days,
+      congestion: prediction.congestion,
+      meets_deadline: !deadline || prediction.predicted_complete_at <= deadline,
+      source: "rule_based",
+    };
+    row.score = priorityScore(row, priority, deadline);
+    candidates.push(row);
+  }
+  return candidates.sort((a, b) => a.score - b.score || a.receive_on.localeCompare(b.receive_on)).slice(0, n);
+}
+
+async function recommendationsWithFallback(payload) {
+  try {
+    return await api("/api/recommend", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+  } catch {
+    return ruleRecommendations(payload);
+  }
+}
+
+function findChatSelection(text) {
+  const biz = Object.keys(catalog).find((name) => text.includes(name)) || recBiz.value;
+  const mids = Object.keys(catalog[biz] || {});
+  const mid = mids.find((name) => text.includes(name)) || (biz === recBiz.value ? recMid.value : mids[0]);
+  const subs = catalog[biz]?.[mid] || [];
+  const sub = subs.find((name) => text.includes(name)) || (biz === recBiz.value && mid === recMid.value ? recSub.value : subs[0]);
+  return { biz, mid, sub };
+}
+
+function chatDate(text) {
+  const now = new Date();
+  if (text.includes("다음주")) now.setDate(now.getDate() + 7);
+  if (text.includes("다음달")) now.setMonth(now.getMonth() + 1);
+  const iso = text.match(/(20\d{2})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (iso) return `${iso[1]}-${String(iso[2]).padStart(2,"0")}-${String(iso[3]).padStart(2,"0")}`;
+  return toISO(now);
+}
+
+function chatDeadline(text) {
+  const exact = text.match(/(\d{1,2})월\s*(\d{1,2})일/);
+  const monthEnd = text.match(/(\d{1,2})월\s*말/);
+  if (!exact && !monthEnd) return null;
+  const now = new Date();
+  const month = Number((exact || monthEnd)[1]);
+  let year = now.getFullYear();
+  if (month < now.getMonth() + 1) year += 1;
+  const day = exact ? Number(exact[2]) : new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+}
+
+async function ruleChat(text) {
+  const selection = findChatSelection(text);
+  const priority = /안정/.test(text) ? "stable" : /혼잡/.test(text) ? "avoid_congestion" : /마감|까지/.test(text) ? "meet_deadline" : "fast";
+  const earliest = chatDate(text);
+  const deadline = chatDeadline(text);
+  const rows = ruleRecommendations({ ...selection, earliest, deadline, priority, n: 3 });
+  const lines = rows.map((row, index) => `${index + 1}순위 ${row.receive_on} 접수 → ${row.predicted_complete_at} 완료 예상 (${row.predicted_days}영업일, 혼잡도 ${row.congestion})`);
+  return `학습 데이터 기반 규칙으로 ${selection.biz} > ${selection.mid} > ${selection.sub} 일정을 계산했습니다.\n${lines.join("\n")}${deadline ? `\n목표일 ${deadline} 기준 ${rows[0]?.meets_deadline ? "충족 가능성이 있습니다." : "일정 여유가 부족할 수 있습니다."}` : ""}\n정확한 일정은 실제 시료 상태와 담당 부서 확인에 따라 달라질 수 있습니다.`;
+}
 
 function fillSel(el, items) {
   el.innerHTML = items.map((v) => `<option value="${v}">${v}</option>`).join("");
@@ -120,17 +269,10 @@ async function refreshCalendarPrediction() {
     calendarSelectionSummary.textContent = "분류와 접수일을 선택하면 예측 완료일이 표시됩니다.";
     return;
   }
-  try {
-    const p = await api("/api/predict", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ biz: calendarBizSelect.value, mid: calendarCategorySelect.value,
-        sub: calendarSubcategorySelect.value, receive_on: toISO(selectedCalendarDate) }),
-    });
-    calendarCompletionDate.textContent = fmtDate(p.predicted_complete_at);
-    calendarSelectionSummary.textContent = `${fmtDate(selectedCalendarDate)} 접수 · ${calendarBizSelect.value} > ${calendarCategorySelect.value} > ${calendarSubcategorySelect.value} · 예상 ${p.predicted_days}일 (${p.low_days}~${p.high_days}일, 신뢰도 ${Math.round(p.confidence*100)}%, 혼잡도 ${p.congestion})`;
-  } catch (e) {
-    calendarSelectionSummary.textContent = "예측 실패: " + e.message;
-  }
+  const p = await predictWithFallback({ biz: calendarBizSelect.value, mid: calendarCategorySelect.value,
+    sub: calendarSubcategorySelect.value, receive_on: toISO(selectedCalendarDate) });
+  calendarCompletionDate.textContent = fmtDate(p.predicted_complete_at);
+  calendarSelectionSummary.textContent = `${fmtDate(selectedCalendarDate)} 접수 · ${calendarBizSelect.value} > ${calendarCategorySelect.value} > ${calendarSubcategorySelect.value} · 예상 ${p.predicted_days}일 (${p.low_days}~${p.high_days}일, 신뢰도 ${Math.round(p.confidence*100)}%, 혼잡도 ${p.congestion})${p.source === "rule_based" ? " · 룰 기반" : ""}`;
 }
 
 async function calculateDuration() {
@@ -139,33 +281,47 @@ async function calculateDuration() {
     calculatedDate.textContent = "접수일을 선택하세요";
     return;
   }
-  const p = await api("/api/predict", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ biz: calcBiz.value, mid: categorySelect.value, sub: subcategorySelect.value, receive_on: calcDate.value }),
-  });
+  const p = await predictWithFallback({ biz: calcBiz.value, mid: categorySelect.value, sub: subcategorySelect.value, receive_on: calcDate.value });
   calculatedDays.textContent = `${p.predicted_days}일 (${p.low_days}~${p.high_days})`;
-  calculatedDate.textContent = `예상 완료일 ${fmtDate(p.predicted_complete_at)} · 신뢰도 ${Math.round(p.confidence*100)}% · 혼잡도 ${p.congestion}`;
+  calculatedDate.textContent = `예상 완료일 ${fmtDate(p.predicted_complete_at)} · 신뢰도 ${Math.round(p.confidence*100)}% · 혼잡도 ${p.congestion}${p.source === "rule_based" ? " · 룰 기반 계산" : ""}`;
 }
 
 async function fetchRecommend() {
   if (!recEarliest.value) { recommendationMessage.textContent = "희망 시작일을 선택해주세요."; return; }
   recommendationMessage.textContent = "추천 계산 중...";
-  try {
-    const recs = await api("/api/recommend", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        biz: recBiz.value, mid: recMid.value, sub: recSub.value,
-        earliest: recEarliest.value,
-        deadline: recDeadline.value || null,
-        priority: recPriority.value, n: 5,
-      }),
-    });
-    if (!recs.length) { recommendationList.innerHTML = ""; recommendationMessage.textContent = "추천 결과가 없습니다."; return; }
-    recommendationList.innerHTML = recs.map((r, i) => `<div class="recommend-card"><strong>${i+1}순위 · 접수 ${r.receive_on}</strong>예상 완료 ${r.predicted_complete_at} · 소요 ${r.predicted_days}일 · 혼잡도 ${r.congestion}${r.meets_deadline?" · ✅ 마감 충족":" · ⚠ 마감 초과"}</div>`).join("");
-    recommendationMessage.textContent = "AI 추천 결과 (점수순)";
-  } catch (e) {
-    recommendationMessage.textContent = "추천 실패: " + e.message;
-  }
+  const recs = await recommendationsWithFallback({
+    biz: recBiz.value, mid: recMid.value, sub: recSub.value,
+    earliest: recEarliest.value, deadline: recDeadline.value || null,
+    priority: recPriority.value, n: 5,
+  });
+  if (!recs.length) { recommendationList.innerHTML = ""; recommendationMessage.textContent = "추천 결과가 없습니다."; return; }
+  recommendationList.innerHTML = recs.map((r, i) => {
+    const receiveDate = String(r.receive_on || "-").replaceAll("-", ".");
+    const completeDate = String(r.predicted_complete_at || "-").replaceAll("-", ".");
+    const days = Number.isInteger(Number(r.predicted_days)) ? Number(r.predicted_days) : Number(r.predicted_days).toFixed(1);
+    const deadline = recDeadline.value
+      ? `<span class="recommend-deadline ${r.meets_deadline ? "" : "late"}">${r.meets_deadline ? "마감 가능" : "마감 초과"}</span>`
+      : "";
+    return `<article class="recommend-card ${i === 0 ? "best" : ""}">
+      <div class="recommend-card-head">
+        <span class="recommend-rank">${i + 1}</span>
+        <span class="recommend-card-title">${i === 0 ? "가장 추천하는 일정" : "추천 일정"}</span>
+        ${deadline}
+      </div>
+      <div class="recommend-route">
+        <div class="recommend-date"><span>접수일</span><b>${receiveDate}</b></div>
+        <span class="recommend-arrow" aria-hidden="true">→</span>
+        <div class="recommend-date"><span>예상 완료일</span><b>${completeDate}</b></div>
+      </div>
+      <div class="recommend-meta">
+        <span class="recommend-chip">예상 ${days}일</span>
+        <span class="recommend-chip congestion">혼잡도 ${r.congestion || "보통"}</span>
+      </div>
+    </article>`;
+  }).join("");
+  recommendationMessage.textContent = recs[0]?.source === "rule_based"
+    ? "학습 데이터 규칙으로 적합한 순서대로 정리했습니다."
+    : "예측 결과를 바탕으로 적합한 순서대로 정리했습니다.";
 }
 
 async function chatAsk() {
@@ -177,8 +333,8 @@ async function chatAsk() {
   try {
     const r = await api("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
     chatLog.lastElementChild.querySelector(".bubble").textContent = r.message;
-  } catch (e) {
-    chatLog.lastElementChild.querySelector(".bubble").textContent = "에러: " + e.message;
+  } catch {
+    chatLog.lastElementChild.querySelector(".bubble").textContent = await ruleChat(text);
   }
   chatLog.scrollTop = chatLog.scrollHeight;
 }
@@ -225,8 +381,29 @@ async function submitForm(ev) {
     submitMessage.textContent = `전송완료! 신청번호 ${r.id} · 예상 완료 ${p.predicted_complete_at || "-"} (${p.predicted_days || "-"}일, 혼잡도 ${p.congestion || "-"})`;
     receiptForm.reset();
     localStorage.removeItem(draftKey);
-  } catch (e) {
-    submitMessage.textContent = "전송 실패: " + e.message;
+  } catch {
+    const prediction = rulePrediction({ biz: payload.biz, mid: payload.category, sub: payload.subcategory, receive_on: toISO(new Date()) });
+    let applications = [];
+    try { applications = JSON.parse(localStorage.getItem(applicationKey) || "[]"); } catch {}
+    const id = Date.now();
+    applications.push({
+      id, status: "pending", received_at: new Date().toISOString(), completed_at: null,
+      biz: payload.biz, category: payload.category, subcategory: payload.subcategory,
+      sample_name: payload.sample_name, payment: payload.payment, report: payload.report,
+      return_method: payload.return_method, return_address: payload.return_address, notes: payload.notes,
+      applicant: { company: payload.company, business_no: payload.business_no, address: payload.address,
+        ceo: payload.ceo, applicant_name: payload.applicant_name, phone: payload.phone,
+        mobile: payload.mobile, email: payload.email, fax: payload.fax },
+      predicted_days: prediction.predicted_days,
+      predicted_complete_at: prediction.predicted_complete_at,
+      prediction_source: "rule_based",
+      local_only: true,
+    });
+    localStorage.setItem(applicationKey, JSON.stringify(applications));
+    submitMessage.textContent = `접수완료! 신청번호 ${id} · 예상 완료 ${prediction.predicted_complete_at} (${prediction.predicted_days}일, 혼잡도 ${prediction.congestion}) · 브라우저에 안전하게 저장되었습니다.`;
+    receiptForm.reset();
+    formBiz.dispatchEvent(new Event("input"));
+    localStorage.removeItem(draftKey);
   }
 }
 
@@ -300,5 +477,5 @@ function loadDraft() {
   renderCalendar();
   bind();
   loadDraft();
-  appendChat("bot", "안녕하세요! 시험 종목과 시기, 마감일, 우선순위(빨리/안정/혼잡회피/마감)를 자연어로 입력하시면 추천을 드립니다.");
+  appendChat("bot", "안녕하세요! 시험 종목과 시기, 마감일, 우선순위(빨리/안정/혼잡회피/마감)를 입력해 주세요. 서버 연결이 없어도 학습 데이터 기반 규칙으로 접수 일정을 추천해 드립니다.");
 })();

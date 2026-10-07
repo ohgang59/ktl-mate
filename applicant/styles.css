@@ -51,6 +51,7 @@ textarea {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
+  overflow-y: auto;
   border-right: 1px solid var(--line);
   background: #ffffff;
   padding: 22px 16px;
@@ -742,7 +743,8 @@ textarea {
   .recommend-sidebar {
     position: static;
     height: auto;
-    max-height: 420px;
+    max-height: none;
+    overflow-y: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
